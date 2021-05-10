@@ -1,0 +1,6 @@
+.ipynb_checkpoints/
+data/disaster_categories.csv
+data/disaster_messages.csv
+*.db
+*.ipynb
+*.pkl
