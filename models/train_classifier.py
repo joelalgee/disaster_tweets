@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import re
 import sys
-from imblearn.pipeline import make_pipeline
+from imblearn.pipeline import Pipeline
 from imblearn.over_sampling import SMOTE
 from joblib import dump, load
 from nltk.stem.wordnet import WordNetLemmatizer
@@ -18,6 +18,44 @@ from sqlalchemy import create_engine
 
 nltk.download('punkt')
 nltk.download('wordnet')
+
+class CustomGridSearchCV(GridSearchCV):
+    """Enable multioutputclassifier grid search using classifiers that don't
+       support single class labels (all 0 or all 1), by extracting single class labels
+       before fitting the pipeline, and restoring them after predicting classifications.
+    """
+
+    def fit(self, X, y=None, **fit_params):
+        """ Extract and store single class label columns, then fit remaining labels as normal.
+        """
+
+        # Extract and store single class label columns from y array
+        if y is not None:
+            # Find single class labels' column numbers and their classifications
+            colsums = y.sum(axis=0)
+            col_numbers = np.where((colsums==0) + (colsums==y.shape[0]))[0]
+            classifications = y[0][col_numbers]
+
+            # Store the column numbers and classifications
+            self.single_class_labels = list(zip(col_numbers, classifications))
+
+            # Delete these columns from the y array
+            y = np.delete(y, col_numbers, axis=1)
+
+        super().fit(X, y, **fit_params)
+
+    def predict(self, X):
+        """ Predict as normal, then restore single class label columnss to predictions.
+        """
+     
+        y_pred = super().predict(X)
+
+        # Restore single class labels to y_pred
+        for col_number, classification in self.single_class_labels:
+            col = np.full(y_pred.shape[0], classification)
+            y_pred = np.insert(y_pred, col_number, col, axis=1)
+
+        return y_pred
 
 def load_data(database_filepath):
     """ Load database containing messages and labels, extract any labels containing a
@@ -38,46 +76,13 @@ def load_data(database_filepath):
 
     engine = create_engine('sqlite:///{}'.format(database_filepath))
     df = pd.read_sql_table('categorised_tweets', engine)
-    df, single_class_labels = extract_single_class_labels(df)
     X = df['message'].values
     Y = df.iloc[:,4:].values
     category_names = df.iloc[:,4:].columns.tolist()
 
-    for key, value in single_class_labels.items():
-        print('----')       
-        print(f'All observations of `{key}` are classed as `{value}`.')
-        print(f'`{key}` is therefore be excluded from the data for modeling.')
-
     return X, Y, category_names
 
-def extract_single_class_labels(df):
-    """Find any labels containing a single class (either 0 or 1)
-       across all observations, record them and drop from df.
-    
-    Args:
-    df: Pandas dataframe. The dataframe to search
-
-    Returns:
-    df: Pandas dataframe. The dataframe with any single class labels dropped.
-    single_class_labels: dict. A dictionary containing the single class labels - 
-                               key: label name (str), value: class (0 or 1).
-    """
-    
-    single_class_labels = {}
-    rows = len(df)
-
-    # Record label name and class in dict if class is either 0 or 1 for all observations
-    for colname, coldata in df.iloc[:, 4:].iteritems():
-        colsum = coldata.sum()
-        if colsum == 0 or colsum == rows:
-            single_class_labels[colname] = coldata[0]
-
-    # Drop any dataframe columns containing single class labels
-    df = df.drop(single_class_labels.keys(), axis=1)
-
-    return df, single_class_labels
-
-def multilabel_test_train_split(X, Y, category_names=None, test_size=0.2, random_state=None, verbose=False):
+def multilabel_test_train_split(X, Y, category_names=None, test_size=0.2, verbose=False):
     """Splits X and Y into train and test sets, ensuring that each label in Y is represented
        roughly equally in both sets.
     
@@ -87,7 +92,6 @@ def multilabel_test_train_split(X, Y, category_names=None, test_size=0.2, random
     category_names: list. The names of the labels, for use in verbose reporting. If not 
                           provided, each label will be allocated a number instead.
     test_size: float. The proportion of observations to allocate to the test set.
-    random_state: int. The random seed to be used for debugging purposes.
     verbose: boolean. Whether to output a detailed breakdown of splits for each label,
                       or a brief overall summary
     Returns:
@@ -96,12 +100,6 @@ def multilabel_test_train_split(X, Y, category_names=None, test_size=0.2, random
     Y_train: ndarray. The array of labels for the train set.
     Y_test: ndarray. The array of labels for the test set.
     """
-    
-    # Set random seed
-    if random_state is None:
-        np.random.seed()
-    else:
-        np.random.seed(random_state)
     
     # Create indicator for each observation initialised to zeros:
     # 1 - in test set
@@ -128,6 +126,16 @@ def multilabel_test_train_split(X, Y, category_names=None, test_size=0.2, random
 
     # Starting with rarest label and working towards commonest, add random sample to test set
     for idx, total in label_totals:
+
+        # Skip if this is a single class label
+        if total == 0 or total == rows:
+            if verbose == True:
+                label_class = '0' if total == 0 else '1'
+                print('----')
+                print('Label: ' + category_names[idx])
+                print('Total occurrences: ' + str(total))
+                print('Skipping this label as all observations are classed ' + label_class)
+            continue
 
         # Check how many observations in the test set already have this label
         n_sampled = len(np.where((Y[:,idx] == 1) * (test == 1))[0])
@@ -207,8 +215,7 @@ def multilabel_test_train_split(X, Y, category_names=None, test_size=0.2, random
     return X_train, X_test, Y_train, Y_test
 
 def tokenize(text):
-    """Replace urls with placeholders, split text into lemmatized tokens. Stopwords are
-       not removed.
+    """Replace urls with placeholders, split text into lemmatized tokens.
 
     Args:
     text: string. The text to be tokenized.
@@ -249,36 +256,37 @@ def build_model():
     None
 
     Returns:
-    model: GridSearchCV. The configured model.
+    model: CustomGridSearchCV. The configured model.
     """
 
     # Configure pipeline components
     vect = CountVectorizer(lowercase=False, tokenizer=tokenize, max_df=0.95,
                            min_df=25)
     tfidf = TfidfTransformer()
-    smote = SMOTE()
-    grad = GradientBoostingClassifier(max_features=None,
+    smt = SMOTE()
+    grd = GradientBoostingClassifier(max_features=None,
                                       n_iter_no_change=3)
     
     # Both smote and grad need to be run for each label individually to be effective
-    clf = make_pipeline(smote, grad)
+    clf = Pipeline([('smt', smt), ('grd', grd)])
     multi_clf = MultiOutputClassifier(clf, n_jobs=-1)
 
     # Assemble full pipeline
-    pipeline = make_pipeline(vect, tfidf, multi_clf)
+    pipeline = Pipeline([('vect', vect), ('tfidf', tfidf), ('multi_clf', multi_clf)])
 
     # Select hyperparameters to tune using grid search
-    #parameters = dict(countvectorizer__ngram_range=[(1,1), (1,2)],
-    #                  multioutputclassifier__estimator__gradientboostingclassifier__n_estimators=[10, 100],
-    #                  multioutputclassifier__estimator__gradientboostingclassifier__max_depth=[2, 8],
-    #                  multioutputclassifier__estimator__gradientboostingclassifier__subsample=[0.1, 0.5])
+    #parameters = dict(vect__ngram_range=[(1,1), (1,2)],
+    #                  multi_clf__estimator__grd__n_estimators=[10, 100],
+    #                  multi_clf__estimator__grd__max_depth=[2, 8],
+    #                  multi_clf__estimator__grd__subsample=[0.1, 0.5])
 
-    parameters = dict(countvectorizer__ngram_range=[(1,1)],
-                      multioutputclassifier__estimator__gradientboostingclassifier__n_estimators=[10],
-                      multioutputclassifier__estimator__gradientboostingclassifier__max_depth=[2],
-                      multioutputclassifier__estimator__gradientboostingclassifier__subsample=[0.1])
+    parameters = dict(vect__ngram_range=[(1,1)],
+                      multi_clf__estimator__grd__n_estimators=[10],
+                      multi_clf__estimator__grd__max_depth=[2],
+                      multi_clf__estimator__grd__subsample=[0.1])
 
-    model = GridSearchCV(pipeline, parameters, scoring='f1_micro')
+    # Assemble custom grid search model to allow for single class labels (all 0 or all 1)
+    model = CustomGridSearchCV(pipeline, parameters, scoring='f1_micro')
 
     return model
 
@@ -296,7 +304,7 @@ def evaluate_model(model, X_test, Y_test, category_names):
     """
 
     # Get predictions
-    Y_pred = model.best_estimator_.predict(X_test)
+    Y_pred = model.predict(X_test)
 
     # Print key metrics for each label
     metrics = ['{:23}'.format('Label') + 
@@ -306,11 +314,18 @@ def evaluate_model(model, X_test, Y_test, category_names):
                 '{:>9}'.format('Support')]
     for i in range(0, len(category_names)):
         report = classification_report(Y_test.T[i], Y_pred.T[i], output_dict=True)
-        metrics.append('{:23}'.format(category_names[i]) + 
-                        '{:>9.5f}'.format(report['1']['precision']) + 
-                        '{:>9.5f}'.format(report['1']['recall']) + 
-                        '{:>9.5f}'.format(report['1']['f1-score']) + 
-                        '{:>9}'.format(int(report['1']['support'])))
+        if '1' in report:
+            metrics.append('{:23}'.format(category_names[i]) + 
+                            '{:>9.5f}'.format(report['1']['precision']) + 
+                            '{:>9.5f}'.format(report['1']['recall']) + 
+                            '{:>9.5f}'.format(report['1']['f1-score']) + 
+                            '{:>9}'.format(int(report['1']['support'])))
+        else:            
+            metrics.append('{:23}'.format(category_names[i]) + 
+                            '{:>9.5f}'.format(1) + 
+                            '{:>9.5f}'.format(1) + 
+                            '{:>9.5f}'.format(1) + 
+                            '{:>9}'.format(0))
     for line in metrics:
         print(line)
 
@@ -338,7 +353,7 @@ def main():
         print('----')
         print('Building model...')
         model = build_model()
-        
+
         print('----')
         print('Training model...')
         model.fit(X_train, Y_train)
