@@ -1,6 +1,7 @@
 import json
 import plotly
 import pandas as pd
+import joblib
 
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
@@ -8,7 +9,6 @@ from nltk.tokenize import word_tokenize
 from flask import Flask
 from flask import render_template, request, jsonify
 from plotly.graph_objs import Bar
-from sklearn.externals import joblib
 from sqlalchemy import create_engine
 
 
@@ -26,11 +26,11 @@ def tokenize(text):
     return clean_tokens
 
 # load data
-engine = create_engine('sqlite:///../data/YourDatabaseName.db')
-df = pd.read_sql_table('YourTableName', engine)
+engine = create_engine('sqlite:///../data/DisasterResponse.db')
+df = pd.read_sql_table('categorised_tweets', engine)
 
 # load model
-model = joblib.load("../models/your_model_name.pkl")
+model = joblib.load("../models/classifier.pkl")
 
 
 # index webpage displays cool visuals and receives user input text for model
@@ -39,12 +39,18 @@ model = joblib.load("../models/your_model_name.pkl")
 def index():
     
     # extract data needed for visuals
-    # TODO: Below is an example - modify to extract data for your own visuals
     genre_counts = df.groupby('genre').count()['message']
     genre_names = list(genre_counts.index)
-    
+
+    category_sums = df.iloc[:,4:].sum(axis=0).sort_values()
+    category_counts = category_sums.values.tolist()
+    category_names = category_sums.index.tolist()
+
+    df['n_labels'] = df.iloc[:,4:].sum(axis=1)
+    n_label_counts = df.groupby('n_labels').count()['message']
+    n_label_names = list(n_label_counts.index)
+
     # create visuals
-    # TODO: Below is an example - modify to create your own visuals
     graphs = [
         {
             'data': [
@@ -57,10 +63,54 @@ def index():
             'layout': {
                 'title': 'Distribution of Message Genres',
                 'yaxis': {
-                    'title': "Count"
+                    'title': "Message Count"
                 },
                 'xaxis': {
                     'title': "Genre"
+                }
+            }
+        },
+
+        {
+            'data': [
+                Bar(
+                    x=category_counts,
+                    y=category_names,
+                    orientation='h'
+                )
+            ],
+
+            'layout': {
+                'title': 'Count of Messages Per Category',
+                'yaxis': {
+                    'title': "Category",
+                    'automargin': "True"
+                },
+                'xaxis': {
+                    'title': "Message Count"
+                },
+                'height': "1000",
+                'margin': {
+                    'l': "200"
+                },
+            }
+        },
+
+        {
+            'data': [
+                Bar(
+                    x=n_label_names,
+                    y=n_label_counts
+                )
+            ],
+
+            'layout': {
+                'title': 'Number of Categories Per Message',
+                'yaxis': {
+                    'title': "Message Count"
+                },
+                'xaxis': {
+                    'title': "Number of Categories"
                 }
             }
         }
@@ -71,7 +121,7 @@ def index():
     graphJSON = json.dumps(graphs, cls=plotly.utils.PlotlyJSONEncoder)
     
     # render web page with plotly graphs
-    return render_template('master.html', ids=ids, graphJSON=graphJSON)
+    return render_template('master.html', genre_names=genre_names, ids=ids, graphJSON=graphJSON)
 
 
 # web page that handles user query and displays model results
