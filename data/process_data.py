@@ -26,7 +26,8 @@ def load_data(messages_filepath, categories_filepath):
     return df
 
 def clean_data(df):
-    """Convert categories column to one column per category (0/1) and remove duplicate rows.
+    """Convert categories column to one column per category (0/1) and
+       remove duplicate rows.
 
     Args:
     df: Pandas dataframe. The dataframe to be cleaned.
