@@ -32,9 +32,9 @@ def index():
     category_counts = category_sums.values.tolist()
     category_names = category_sums.index.tolist()
 
-    df['n_labels'] = df.iloc[:,4:].sum(axis=1)
-    n_label_counts = df.groupby('n_labels').count()['message']
-    n_label_names = list(n_label_counts.index)
+    n_labels = df.iloc[:,4:].sum(axis=1)
+    n_label_counts = df.groupby(n_labels).count()['message']
+    n_label_names = n_label_counts.index.tolist()
 
     # create visuals
     graphs = [
@@ -47,7 +47,7 @@ def index():
             ],
 
             'layout': {
-                'title': 'Distribution of Message Genres',
+                'title': 'Distribution of Messages’ Genres',
                 'yaxis': {
                     'title': "Message Count"
                 },
@@ -91,12 +91,12 @@ def index():
             ],
 
             'layout': {
-                'title': 'Number of Categories Per Message',
+                'title': 'Distribution of Messages’ Number of Categories',
                 'yaxis': {
                     'title': "Message Count"
                 },
                 'xaxis': {
-                    'title': "Number of Categories"
+                    'title': "Messages’ Number of Categories"
                 }
             }
         }
