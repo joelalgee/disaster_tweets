@@ -1,6 +1,4 @@
 .ipynb_checkpoints/
-data/disaster_categories.csv
-data/disaster_messages.csv
 models/__pycache__
 *.db
 *.ipynb
