@@ -28,11 +28,11 @@ def index():
     genre_counts = df.groupby('genre').count()['message']
     genre_names = list(genre_counts.index)
 
-    category_sums = df.iloc[:,4:].sum(axis=0).sort_values()
+    category_sums = df.iloc[:,7:].sum(axis=0).sort_values()
     category_counts = category_sums.values.tolist()
     category_names = category_sums.index.tolist()
 
-    n_labels = df.iloc[:,4:].sum(axis=1)
+    n_labels = df.iloc[:,7:].sum(axis=1)
     n_label_counts = df.groupby(n_labels).count()['message']
     n_label_names = n_label_counts.index.tolist()
 
@@ -113,17 +113,26 @@ def index():
 # web page that handles user query and displays model results
 @app.route('/go')
 def go():
-    # save user input in query
+    # save user input in query and genre
     query = request.args.get('query', '') 
+    genre = request.args.get('genre', '') 
 
-    # use model to predict classification for query
-    classification_labels = model.predict([query])[0]
-    classification_results = dict(zip(df.columns[4:], classification_labels))
+    # encode input genre
+    genre_encodings = {'direct': [1, 0, 0],
+                       'news': [0, 1, 0],
+                       'social': [0, 0, 1]}
+
+    X = [query] + genre_encodings[genre]
+
+    # use model to predict classification for query, assuming genre is direct
+    classification_labels = model.predict([X])[0]
+    classification_results = dict(zip(df.columns[7:], classification_labels))
 
     # This will render the go.html Please see that file. 
     return render_template(
         'go.html',
         query=query,
+        genre=genre,
         classification_result=classification_results
     )
 

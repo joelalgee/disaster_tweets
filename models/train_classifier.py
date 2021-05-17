@@ -6,6 +6,7 @@ from custom_tokenize import tokenize
 from imblearn.pipeline import Pipeline
 from imblearn.over_sampling import SMOTE
 from joblib import dump, load
+from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
@@ -32,9 +33,9 @@ def load_data(database_filepath):
 
     engine = create_engine('sqlite:///{}'.format(database_filepath))
     df = pd.read_sql_table('categorised_tweets', engine)
-    X = df['message'].values
-    Y = df.iloc[:,4:].values
-    category_names = df.iloc[:,4:].columns.tolist()
+    X = df.iloc[:,[1, 4, 5, 6]].values
+    Y = df.iloc[:,7:].values
+    category_names = df.iloc[:,7:].columns.tolist()
 
     return X, Y, category_names
 
@@ -183,29 +184,27 @@ def build_model():
 
     # Configure pipeline components
     vect = CountVectorizer(lowercase=False, tokenizer=tokenize, max_df=0.95,
-                           min_df=25)
+                           min_df=25, ngram_range=(1,2))
     tfidf = TfidfTransformer()
     smt = SMOTE()
     grd = GradientBoostingClassifier(max_features=None,
-                                      n_iter_no_change=3)
+                                     subsample=0.5,
+                                     n_iter_no_change=3)
+
+    # Only apply natural language processing to message column
+    nlp = Pipeline([('vect', vect), ('tfidf', tfidf)])
+    ct = ColumnTransformer([('nlp', nlp, 0)], remainder='passthrough')
     
     # Both smote and grad need to be run for each label individually to be effective
     clf = Pipeline([('smt', smt), ('grd', grd)])
     multi_clf = MultiOutputClassifier(clf, n_jobs=-1)
 
     # Assemble full pipeline
-    pipeline = Pipeline([('vect', vect), ('tfidf', tfidf), ('multi_clf', multi_clf)])
+    pipeline = Pipeline([('ct', ct), ('multi_clf', multi_clf)])
 
     # Select hyperparameters to tune using grid search
-    #parameters = dict(vect__ngram_range=[(1,1), (1,2)],
-    #                  multi_clf__estimator__grd__n_estimators=[10, 100],
-    #                  multi_clf__estimator__grd__max_depth=[2, 8],
-    #                  multi_clf__estimator__grd__subsample=[0.1, 0.5])
-
-    parameters = dict(vect__ngram_range=[(1,1)],
-                      multi_clf__estimator__grd__n_estimators=[10],
-                      multi_clf__estimator__grd__max_depth=[2],
-                      multi_clf__estimator__grd__subsample=[0.1])
+    parameters = dict(multi_clf__estimator__grd__n_estimators=[10, 100],
+                      multi_clf__estimator__grd__max_depth=[3, 9])
 
     # Assemble custom grid search model to allow for single class labels (all 0 or all 1)
     model = CustomGridSearchCV(pipeline, parameters, scoring='f1_micro')

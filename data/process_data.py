@@ -26,8 +26,8 @@ def load_data(messages_filepath, categories_filepath):
     return df
 
 def clean_data(df):
-    """Convert categories column to one column per category (0/1) and
-       remove duplicate rows.
+    """Convert categories column to one column per category (0/1), 
+       one hot encode genres column, and remove duplicate rows.
 
     Args:
     df: Pandas dataframe. The dataframe to be cleaned.
@@ -61,8 +61,9 @@ def clean_data(df):
     # drop the original categories column from `df`
     df.drop('categories', axis=1, inplace=True)
 
-    # concatenate the original dataframe with the new `categories` dataframe
-    df = pd.concat([df, categories], axis=1)
+    # concatenate the original dataframe with one hot encoded genre
+    # and the new `categories` dataframe
+    df = pd.concat([df, pd.get_dummies(df.genre), categories], axis=1)
 
     # drop duplicates and return
     df = df.drop_duplicates()
