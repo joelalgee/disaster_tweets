@@ -35,14 +35,14 @@ flask                     1.1.2
 
 ## Files
 
-1. data/process_data.py:
+### 1. data/process_data.py:
 
 * Extracts the messages and categories from the relevant csv files and combines them into a single pandas dataframe.
 * Converts genre and categories into one hot encoded columns.
 * Removes duplicates.
 * Saves the dataframe as a sqlite database.
 
-2. models/train_classifier.py:
+### 2. models/train_classifier.py:
 
 * Loads the database and separates features and labels into separate numpy arrays.
 * Splits the arrays into train and test sets, ensuring all labels are represented adequately in both.
@@ -50,7 +50,7 @@ flask                     1.1.2
 * Evaluates the model using the test set, outputting precision, recall, f1 score and support for positive classification of each label.
 * Saves the model as a pkl file.
 
-3. models/custom_grid_search_cv.py
+### 3. models/custom_grid_search_cv.py
 
 Slightly modifies scikit learn's GridSearchCV class:
 
@@ -59,24 +59,24 @@ Slightly modifies scikit learn's GridSearchCV class:
 
 This class is stored in its own module to allow joblib to access it upon loading the saved model.
 
-4. models/custom_tokenize.py
+### 4. models/custom_tokenize.py
 
 * Tokenizes messages (removes URLs, normalizes text, tokenizes to words, lemmatizes).
 
-This class is stored in its own module to allow joblib to access it upon loading the saved model.
+This function is stored in its own module to allow joblib to access it upon loading the saved model.
 
-5. app/run.py
+### 5. app/run.py
 
 * Creates the web app.
 * Loads the saved database and model.
 * Displays some visualisations on the data.
 * Allows new tweets to be categorized based on message and genre.
 
-6. app/templates/master.html
+### 6. app/templates/master.html
 
 * Controls the layout of the main web page and form.
 
-7. go.html
+### 7. go.html
 
 * Controls the layout of the categorization results.
 
