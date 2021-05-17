@@ -88,6 +88,8 @@ The dataset is highly imbalanced with some labels used infrequently. To cope wit
 
 * A custom multilabel_test_train_split function ensures that all labels are represented adequately in train and test sets. Were scikit learn's standard test_train_split function to be used, some labels would not be represented in the training set at all, causing the gradient boosting classifier to return an error, and other algorithms to deduce the label is never used.
 
+* scikit-multilearn's iterative stratification class is used to generate folds for cross validation for the same reason (see Sechidis, K., Tsoumakas, G., & Vlahavas, I. (2011). On the stratification of multi-label data. Machine Learning and Knowledge Discovery in Databases, 145-158. http://lpis.csd.auth.gr/publications/sechidis-ecmlpkdd-2011.pdf and Piotr Szymański, Tomasz Kajdanowicz ; Proceedings of the First International Workshop on Learning with Imbalanced Domains: Theory and Applications, PMLR 74:22-35, 2017. http://proceedings.mlr.press/v74/szyma%C5%84ski17a.html)
+
 * imblearn's SMOTE sampler oversamples positive classifications for each label just before the gradient boosting classifier begins analysis, to provide an artificially balanced set of data.
 
 ### Genre as a feature

@@ -12,6 +12,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.metrics import classification_report
 from sklearn.multioutput import MultiOutputClassifier
+from skmultilearn.model_selection import IterativeStratification
 from sqlalchemy import create_engine
 
 def load_data(database_filepath):
@@ -206,8 +207,11 @@ def build_model():
     parameters = dict(multi_clf__estimator__grd__n_estimators=[10, 100],
                       multi_clf__estimator__grd__max_depth=[3, 9])
 
+    # Enable iterative stratification for cross validation folds
+    k_fold = IterativeStratification(n_splits=5, order=1)
+
     # Assemble custom grid search model to allow for single class labels (all 0 or all 1)
-    model = CustomGridSearchCV(pipeline, parameters, scoring='f1_micro')
+    model = CustomGridSearchCV(pipeline, parameters, scoring='f1_micro', cv=k_fold)
 
     return model
 
