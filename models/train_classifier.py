@@ -1,61 +1,17 @@
-import nltk
 import numpy as np
 import pandas as pd
-import re
 import sys
+from custom_grid_search_cv import CustomGridSearchCV
+from custom_tokenize import tokenize
 from imblearn.pipeline import Pipeline
 from imblearn.over_sampling import SMOTE
 from joblib import dump, load
-from nltk.stem.wordnet import WordNetLemmatizer
-from nltk.tokenize import word_tokenize
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.metrics import classification_report
-from sklearn.model_selection import GridSearchCV
 from sklearn.multioutput import MultiOutputClassifier
 from sqlalchemy import create_engine
-
-nltk.download('punkt')
-nltk.download('wordnet')
-
-class CustomGridSearchCV(GridSearchCV):
-    """Enable multioutputclassifier grid search using classifiers that don't
-       support single class labels (all 0 or all 1), by extracting single class labels
-       before fitting the pipeline, and restoring them after predicting classifications.
-    """
-
-    def fit(self, X, y=None, **fit_params):
-        """ Extract and store single class label columns, then fit remaining labels as normal.
-        """
-
-        # Extract and store single class label columns from y array
-        if y is not None:
-            # Find single class labels' column numbers and their classifications
-            colsums = y.sum(axis=0)
-            col_numbers = np.where((colsums==0) + (colsums==y.shape[0]))[0]
-            classifications = y[0][col_numbers]
-
-            # Store the column numbers and classifications
-            self.single_class_labels = list(zip(col_numbers, classifications))
-
-            # Delete these columns from the y array
-            y = np.delete(y, col_numbers, axis=1)
-
-        super().fit(X, y, **fit_params)
-
-    def predict(self, X):
-        """ Predict as normal, then restore single class label columnss to predictions.
-        """
-     
-        y_pred = super().predict(X)
-
-        # Restore single class labels to y_pred
-        for col_number, classification in self.single_class_labels:
-            col = np.full(y_pred.shape[0], classification)
-            y_pred = np.insert(y_pred, col_number, col, axis=1)
-
-        return y_pred
 
 def load_data(database_filepath):
     """ Load database containing messages and labels, extract any labels containing a
@@ -213,40 +169,6 @@ def multilabel_test_train_split(X, Y, category_names=None, test_size=0.2, verbos
     Y_test = Y[np.where(test == 1)[0]]
 
     return X_train, X_test, Y_train, Y_test
-
-def tokenize(text):
-    """Replace urls with placeholders, split text into lemmatized tokens.
-
-    Args:
-    text: string. The text to be tokenized.
-    
-    Returns:
-    lemmed: list of strings. The lemmatized tokens.
-    """
-
-    # Find any urls
-    url_regex = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-    detected_urls = re.findall(url_regex, text)
-    
-    # Replace each url in text string with placeholder
-    for url in detected_urls:
-        text = text.replace(url, 'urlplaceholder')
-    
-    # Normalize to lower case alphanumeric characters
-    text = text.lower()
-    text = re.sub("'", '', text)
-    text = re.sub(r'[^a-z0-9]', ' ', text)
-    
-    # Tokenize
-    words = word_tokenize(text)
-        
-    # Lemmatize nouns
-    lemmed = [WordNetLemmatizer().lemmatize(w) for w in words]
-    
-    # Lemmatize verbs
-    lemmed = [WordNetLemmatizer().lemmatize(w, pos='v') for w in lemmed]
-    
-    return lemmed
 
 def build_model():
     """Build a multilabel gradient boosting classifier using SMOTE to compensate for
