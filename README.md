@@ -1,5 +1,7 @@
 # Disaster Tweet Classification
 
+Classifying tweets during a disaster, using ETL and ML pipelines and a Flask web app in Python
+
 ## Summary
 
 During disaster events, Twitter is increasingly used to communicate information from the ground and send requests for help. Many thousands of tweets can be sent within a short period of time, and getting the right information to the right organisations in a timely and efficient manner is a challenge.
