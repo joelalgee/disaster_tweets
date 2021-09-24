@@ -106,4 +106,4 @@ For this reason, F1 micro score is used for scoring by the grid search.
 
 ## Credits
 
-The project, and parts of the code, were provided by [Udacity](https://www.udacity.com/), as part of their Data Scientist nanodegree. The data were provided by [Figure Eight](https://www.figure-eight.com/), a machine learning and artificial intelligence company based in San Francisco.
+The project, and parts of the code, were provided by [Udacity](https://www.udacity.com/), as part of their [Data Scientist nanodegree](https://www.udacity.com/course/data-scientist-nanodegree--nd025). The data were provided by [Figure Eight](https://www.figure-eight.com/), a machine learning and artificial intelligence company based in San Francisco.
