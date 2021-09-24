@@ -1,37 +1,39 @@
-# Disaster Response Pipeline Project
+# Disaster Response ETL and ML Pipelines
 
 ## Summary
 
-This project analyzes a dataset containing real messages that were sent during disaster events. A machine learning pipeline was created to categorize these events so that the messages can be sent to an appropriate disaster relief agency.
+During disaster events, Twitter is increasingly used to communicate information from the ground and send requests for help. Many thousands of tweets can be sent within a short period of time, and getting the right information to the right organisations in a timely and efficient manner is a challenge.
 
-The project includes a web app where an emergency worker can input a new message and get classification results in several categories. The web app also displays visualizations of the data.
+In this project, I analyzed a dataset containing real messages that were sent during disaster events. I created a machine learning pipeline to categorise these tweets so that the messages could be forwarded to an appropriate disaster relief agency.
+
+The project includes a web app where an emergency worker can input a new message and get classification results across multiple categories. The web app also displays visualizations of the data.
 
 ## Package versions
 
-python                    3.9.4
-numpy                     1.20.1
-pandas                    1.2.4
-imbalanced-learn          0.8.0
-joblib                    1.0.1
-scikit-learn              0.24.2
-sqlalchemy                1.4.7
-nltk                      3.6.1
-plotly                    4.14.3
-flask                     1.1.2
+* python 3.9.4
+* numpy 1.20.1
+* pandas 1.2.4
+* imbalanced-learn 0.8.0
+* joblib 1.0.1
+* scikit-learn 0.24.2
+* sqlalchemy 1.4.7
+* nltk 3.6.1
+* plotly 4.14.3
+* flask 1.1.2
 
 ## Instructions
 
 1. Run the following commands in the project's root directory to set up your database and model.
 
-    - To run ETL pipeline that cleans data and stores in database
+    - To run the ETL pipeline that cleans data and stores in database
         `python data/process_data.py data/disaster_messages.csv data/disaster_categories.csv data/DisasterResponse.db`
-    - To run ML pipeline that trains classifier and saves
+    - To run the ML pipeline that trains classifier and saves
         `python models/train_classifier.py data/DisasterResponse.db models/classifier.pkl`
 
 2. Run the following command in the app's directory to run your web app.
     `python run.py`
 
-3. Go to http://0.0.0.0:3001/ or http://localhost:3000
+3. Go to http://0.0.0.0:3001/ or http://localhost:3001
 
 ## Files
 
@@ -80,21 +82,17 @@ This function is stored in its own module to allow joblib to access it upon load
 
 * Controls the layout of the categorization results.
 
-## Noteworthy features
+## Notable features
 
 ### Imbalanced data
 
-The dataset is highly imbalanced with some labels used infrequently. To cope with this property, several measures have been taken:
+The dataset is highly imbalanced with some labels used infrequently. To cope with this property, several measures were taken:
 
-* A custom multilabel_test_train_split function ensures that all labels are represented adequately in train and test sets. Were scikit learn's standard test_train_split function to be used, some labels would not be represented in the training set at all, causing the gradient boosting classifier to return an error, and other algorithms to deduce the label is never used.
+* A custom multilabel_test_train_split function ensures that all labels are represented adequately in train and test sets. Were scikit learn's standard test_train_split function to be used, some labels would not be represented in the training set at all, causing the gradient boosting classifier to return an error, and other algorithms to deduce that the label is never used.
 
 * scikit-multilearn's iterative stratification class is used to generate folds for cross validation for the same reason (see Sechidis, K., Tsoumakas, G., & Vlahavas, I. (2011). On the stratification of multi-label data. Machine Learning and Knowledge Discovery in Databases, 145-158. http://lpis.csd.auth.gr/publications/sechidis-ecmlpkdd-2011.pdf and Piotr Szymański, Tomasz Kajdanowicz ; Proceedings of the First International Workshop on Learning with Imbalanced Domains: Theory and Applications, PMLR 74:22-35, 2017. http://proceedings.mlr.press/v74/szyma%C5%84ski17a.html)
 
 * imblearn's SMOTE sampler oversamples positive classifications for each label just before the gradient boosting classifier begins analysis, to provide an artificially balanced set of data.
-
-### Genre as a feature
-
-Genre is included as a feature for this model. To enable this, the natural language transformations are applied as a column transformer.
 
 ### F1 Micro Scoring
 
@@ -103,3 +101,7 @@ For the model to be useful, it needs to identify a high proportion of relevant m
 High recall with low precision would mean sending a large number of irrelevant messages to an agency, which doesn't reduce the manual workload by much. High precision with low recall would mean missing most of the relevant messages, so the rest of the messages would need to be sent over and checked manually anyway.
 
 For this reason, F1 micro score is used for scoring by the grid search.
+
+## Credits
+
+The project, and parts of the code, were provided by [Udacity](https://www.udacity.com/), as part of their Data Scientist nanodegree. The data were provided by [Figure Eight](https://www.figure-eight.com/), a machine learning and artificial intelligence company based in San Francisco.
