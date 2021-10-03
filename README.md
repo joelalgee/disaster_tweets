@@ -1,4 +1,4 @@
-# Disaster Tweet Classification
+# Disaster Tweet Classification - May 2021
 
 Classifying tweets during a disaster, using ETL and ML pipelines and a Flask web app in Python
 
